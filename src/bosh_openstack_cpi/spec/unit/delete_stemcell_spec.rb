@@ -5,7 +5,7 @@ require "spec_helper"
 
 describe Bosh::OpenStackCloud::Cloud do
 
-  it "deletes stemcell" do
+  xit "deletes stemcell" do
     image = double("image", :id => "i-foo", :name => "i-foo", :properties => {})
 
     cloud = mock_glance do |glance|

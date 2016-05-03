@@ -102,44 +102,54 @@ module Bosh::OpenStackCloud
     def create_stemcell(image_path, cloud_properties)
       with_thread_name("create_stemcell(#{image_path}...)") do
         begin
-          Dir.mktmpdir do |tmp_dir|
-            @logger.info('Creating new image...')
-            image_params = {
-              :name => "BOSH-#{generate_unique_name}",
-              :disk_format => cloud_properties['disk_format'],
-              :container_format => cloud_properties['container_format'],
-              :is_public => @stemcell_public_visibility.nil? ? false : @stemcell_public_visibility,
-            }
+          # Dir.mktmpdir do |tmp_dir|
+          #   @logger.info('Creating new image...')
+          #   image_params = {
+          #     :name => "BOSH-#{generate_unique_name}",
+          #     :disk_format => cloud_properties['disk_format'],
+          #     :container_format => cloud_properties['container_format'],
+          #     :is_public => @stemcell_public_visibility.nil? ? false : @stemcell_public_visibility,
+          #   }
 
-            image_properties = {}
-            vanilla_options = ['name', 'version', 'os_type', 'os_distro', 'architecture', 'auto_disk_config',
-                               'hw_vif_model', 'hypervisor_type', 'vmware_adaptertype', 'vmware_disktype',
-                               'vmware_linked_clone', 'vmware_ostype']
-            vanilla_options.reject{ |o| cloud_properties[o].nil? }.each do |key|
-              image_properties[key.to_sym] = cloud_properties[key]
-            end
-            image_params[:properties] = image_properties unless image_properties.empty?
+          #   image_properties = {}
+          #   vanilla_options = ['name', 'version', 'os_type', 'os_distro', 'architecture', 'auto_disk_config',
+          #                      'hw_vif_model', 'hypervisor_type', 'vmware_adaptertype', 'vmware_disktype',
+          #                      'vmware_linked_clone', 'vmware_ostype']
+          #   vanilla_options.reject{ |o| cloud_properties[o].nil? }.each do |key|
+          #     image_properties[key.to_sym] = cloud_properties[key]
+          #   end
+          #   image_params[:properties] = image_properties unless image_properties.empty?
 
-            # If image_location is set in cloud properties, then pass the copy-from parm. Then Glance will fetch it
-            # from the remote location on a background job and store it in its repository.
-            # Otherwise, unpack image to temp directory and upload to Glance the root image.
-            if cloud_properties['image_location']
-              @logger.info("Using remote image from `#{cloud_properties['image_location']}'...")
-              image_params[:copy_from] = cloud_properties['image_location']
-            else
-              @logger.info("Extracting stemcell file to `#{tmp_dir}'...")
-              unpack_image(tmp_dir, image_path)
-              image_params[:location] = File.join(tmp_dir, 'root.img')
-            end
+          #   # If image_location is set in cloud properties, then pass the copy-from parm. Then Glance will fetch it
+          #   # from the remote location on a background job and store it in its repository.
+          #   # Otherwise, unpack image to temp directory and upload to Glance the root image.
+          #   if cloud_properties['image_location']
+          #     @logger.info("Using remote image from `#{cloud_properties['image_location']}'...")
+          #     image_params[:copy_from] = cloud_properties['image_location']
+          #   else
+          #     @logger.info("Extracting stemcell file to `#{tmp_dir}'...")
+          #     unpack_image(tmp_dir, image_path)
+          #     image_params[:location] = File.join(tmp_dir, 'root.img')
+          #   end
 
-            # Upload image using Glance service
-            @logger.debug("Using image parms: `#{image_params.inspect}'")
-            image = with_openstack { @openstack.image.images.create(image_params) }
+          #   # Upload image using Glance service
+          #   @logger.debug("Using image parms: `#{image_params.inspect}'")
+          #   image = with_openstack { @openstack.image.images.create(image_params) }
 
-            @logger.info("Creating new image `#{image.id}'...")
-            wait_resource(image, :active)
+          #   @logger.info("Creating new image `#{image.id}'...")
+          #   wait_resource(image, :active)
 
-            image.id.to_s
+          #   image.id.to_s
+          # end
+          image_name = sprintf("%s_%s", cloud_properties['name'], cloud_properties['version'])
+          @logger.info("Searching stemcell `#{image_name}` ...")
+
+          image = with_openstack { @openstack.image.images.find {|i| i.name == "#{image_name}" } }
+          if image.nil?
+            raise ArgumentError, "Do not find the stemcell image `#{image_name}`."
+          else
+            # return first image id.
+            return image.id.to_s
           end
         rescue => e
           @logger.error(e)
@@ -155,16 +165,17 @@ module Bosh::OpenStackCloud
     #   deleted
     # @return [void]
     def delete_stemcell(stemcell_id)
-      with_thread_name("delete_stemcell(#{stemcell_id})") do
-        @logger.info("Deleting stemcell `#{stemcell_id}'...")
-        image = with_openstack { @openstack.image.images.find_by_id(stemcell_id) }
-        if image
-          with_openstack { image.destroy }
-          @logger.info("Stemcell `#{stemcell_id}' is now deleted")
-        else
-          @logger.info("Stemcell `#{stemcell_id}' not found. Skipping.")
-        end
-      end
+      @logger.info("Stemcell `#{stemcell_id}' is Skipping.")
+      # with_thread_name("delete_stemcell(#{stemcell_id})") do
+      #   @logger.info("Deleting stemcell `#{stemcell_id}'...")
+      #   image = with_openstack { @openstack.image.images.find_by_id(stemcell_id) }
+      #   if image
+      #     with_openstack { image.destroy }
+      #     @logger.info("Stemcell `#{stemcell_id}' is now deleted")
+      #   else
+      #     @logger.info("Stemcell `#{stemcell_id}' not found. Skipping.")
+      #   end
+      # end
     end
 
     ##
@@ -480,6 +491,7 @@ module Bosh::OpenStackCloud
             cloud_error("Cannot delete volume `#{disk_id}', state is #{state}")
           end
 
+          # TODO: Volume.destroy API is changed version for K5.
           with_openstack { volume.destroy }
           wait_resource(volume, :deleted, :status, true)
         else
