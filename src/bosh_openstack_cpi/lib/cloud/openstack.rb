@@ -34,6 +34,9 @@ require "cloud/openstack/excon_logging_instrumentor"
 require "cloud/openstack/availability_zone_provider"
 require "cloud/openstack/redacted_params"
 
+require "cloud/openstack/monkey_patch"
+
+
 module Bosh
   module Clouds
     OpenStack = Bosh::OpenStackCloud::Cloud
