@@ -91,10 +91,16 @@ module Bosh::OpenStackCloud
     # @return [String] OpenStack image UUID of the stemcell
     def create_stemcell(image_path, cloud_properties)
       with_thread_name("create_stemcell(#{image_path}...)") do
-        stemcell_creator = StemcellCreator.new(@logger, @openstack, cloud_properties)
-        stemcell = stemcell_creator.create(image_path, @stemcell_public_visibility)
-        stemcell.id
-      end
+          image_name = sprintf("%s_%s", cloud_properties['name'], cloud_properties['version'])
+          @logger.info("Searching stemcell `#{image_name}` ...")
+
+    　         image = with_openstack { @openstack.image.images.find {|i| i.name == "#{image_name}" } }
+          if image.nil?
+            raise ArgumentError, "Do not find the stemcell image `#{image_name}`."
+          else
+            # return first image id.
+            return image.id.to_s
+          end
     end
 
     ##
@@ -105,10 +111,7 @@ module Bosh::OpenStackCloud
     # @return [void]
     def delete_stemcell(stemcell_id)
       with_thread_name("delete_stemcell(#{stemcell_id})") do
-        @logger.info("Deleting stemcell `#{stemcell_id}'...")
-
-        stemcell = Stemcell.create(@logger, @openstack, stemcell_id)
-        stemcell.delete
+        @logger.info("Skipping deleting stemcell `#{stemcell_id}'...")
       end
     end
 
