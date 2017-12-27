@@ -94,7 +94,7 @@ module Bosh::OpenStackCloud
           image_name = sprintf("%s_%s", cloud_properties['name'], cloud_properties['version'])
           @logger.info("Searching stemcell `#{image_name}` ...")
 
-    　         image = with_openstack { @openstack.image.images.find {|i| i.name == "#{image_name}" } }
+    　         image = @openstack.with_openstack { @openstack.image.images.find {|i| i.name == "#{image_name}" } }
           if image.nil?
             raise ArgumentError, "Do not find the stemcell image `#{image_name}`."
           else
