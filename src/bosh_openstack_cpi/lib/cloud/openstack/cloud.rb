@@ -101,6 +101,7 @@ module Bosh::OpenStackCloud
             # return first image id.
             return image.id.to_s
           end
+      end
     end
 
     ##
